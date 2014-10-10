@@ -138,7 +138,11 @@ public final class ChannelTracker {
 				incidentCount++;
 				missedPackets += (sequenceNumber - expectedSequenceNumber);
 				if (isLoggingEnabled) {
-					System.out.println("Channel " + channelId + " " + id + " - Packet gap: " + sequenceNumber + "\tIncidents: " + incidentCount);
+					for (long i = expectedSequenceNumber; i < sequenceNumber; i++) {
+						System.out.println("Channel " + channelId + " " + id + " - Missing packet: " + i);
+					}
+					
+//					System.out.println("Channel " + channelId + " " + id + " - Packet gap: " + sequenceNumber + "\tIncidents: " + incidentCount);
 				}
 			}
 			expectedSequenceNumber = sequenceNumber + 1;
