@@ -28,13 +28,13 @@ public final class ChannelTracker {
 	private final boolean packetLossLogging;
 
 	public ChannelTracker(Integer channelId, HostAndPort feedAHostAndPort, HostAndPort feedBHostAndPort, boolean packetLossLogging) {
+		this.packetLossLogging = packetLossLogging;
 		this.channelId = channelId;
 		this.aFeedInspector = new PacketSequenceInspector("A-FEED");
 		this.bFeedInspector = new PacketSequenceInspector("B-FEED");
 		this.combinedFeedInspector = new PacketSequenceInspector("");
 		this.aFeed = new FeedReceiver(feedAHostAndPort, aFeedInspector);
 		this.bFeed = new FeedReceiver(feedBHostAndPort, bFeedInspector);
-		this.packetLossLogging = packetLossLogging;
 	}
 
 	public Receiver getFeedReceiverA() {
@@ -110,9 +110,12 @@ public final class ChannelTracker {
 
 		private int receivedCount;
 
+		private final boolean isLoggingEnabled;
+
 		public PacketSequenceInspector(String id) {
 			this.id = id;
 			this.expectedSequenceNumber = Long.MIN_VALUE;
+			this.isLoggingEnabled = packetLossLogging && !id.isEmpty();
 		}
 
 		public double getPercentageMissed() {
@@ -127,23 +130,19 @@ public final class ChannelTracker {
 			receivedCount++;
 			if (sequenceNumber < expectedSequenceNumber) {
 				// Old packet, ignore
-				if (isLogging()) {
-					System.out.println(id + " - Old packet: " + sequenceNumber);
+				if (isLoggingEnabled) {
+					System.out.println("Channel " + channelId + " " + id + " - Old packet: " + sequenceNumber);
 				}
 				return;
 			} else if (sequenceNumber > expectedSequenceNumber && expectedSequenceNumber != Long.MIN_VALUE) {
 				incidentCount++;
 				missedPackets += (sequenceNumber - expectedSequenceNumber);
-				if (isLogging()) {
-					System.out.println(id + " - Packet gap: " + sequenceNumber + "\tIncidents: " + incidentCount);
+				if (isLoggingEnabled) {
+					System.out.println("Channel " + channelId + " " + id + " - Packet gap: " + sequenceNumber + "\tIncidents: " + incidentCount);
 				}
 			}
 			expectedSequenceNumber = sequenceNumber + 1;
 
-		}
-
-		private boolean isLogging() {
-			return packetLossLogging && !id.isEmpty();
 		}
 	}
 
