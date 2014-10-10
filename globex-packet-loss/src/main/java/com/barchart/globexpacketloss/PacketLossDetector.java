@@ -53,11 +53,14 @@ public final class PacketLossDetector {
 
 	private final List<ChannelTracker> channelTrackers;
 
+	private final boolean packetLogging;
+
 	private volatile boolean running = true;
 
 	private long lastLogTime;
 
-	public PacketLossDetector(NetworkInterface bindInterface, File configFile, List<Integer> channelIds) throws Exception {
+
+	public PacketLossDetector(NetworkInterface bindInterface, File configFile, List<Integer> channelIds, boolean packetLogging) throws Exception {
 		this.bindInterface = bindInterface;
 		this.configFile = configFile;
 		this.channelIds = channelIds;
@@ -65,7 +68,7 @@ public final class PacketLossDetector {
 		this.buffer = ByteBuffer.allocateDirect(1500).order(ByteOrder.BIG_ENDIAN);
 		this.membershipTable = HashBasedTable.create();
 		this.channelTrackers = new ArrayList<ChannelTracker>();
-
+		this.packetLogging = packetLogging;
 	}
 
 	public void start() throws Exception {
@@ -108,7 +111,7 @@ public final class PacketLossDetector {
 		for (Integer channelId : channelIds) {
 			HostAndPort incrementalFeedA = xmlConfig.getIncrementalFeedA(channelId);
 			HostAndPort incrementalFeedB = xmlConfig.getIncrementalFeedB(channelId);
-			ChannelTracker channelTracker = new ChannelTracker(channelId, incrementalFeedA, incrementalFeedB);
+			ChannelTracker channelTracker = new ChannelTracker(channelId, incrementalFeedA, incrementalFeedB, packetLogging);
 			channelTrackers.add(channelTracker);
 		}
 	}
@@ -264,6 +267,13 @@ public final class PacketLossDetector {
 		return System.getProperty("os.name").contains("Windows");
 	}
 
+	private static boolean checkForPacketLogging(String[] args) {
+		if (args.length > 3) {
+			return Boolean.valueOf(args[3]);
+		}
+		return false;
+	}
+	
 	public static void main(String[] args) throws Exception {
 		System.out.println("Os: " + System.getProperty("os.name"));
 		if (args.length < 3) {
@@ -273,9 +283,12 @@ public final class PacketLossDetector {
 			File configFile = new File(args[1]);
 			List<Integer> channelIds = getChannels(args[2]);
 			System.out.println("Using interface: " + bindInterface);
-			PacketLossDetector packetLossDetector = new PacketLossDetector(bindInterface, configFile, channelIds);
+			boolean packetLogging = checkForPacketLogging(args);
+			PacketLossDetector packetLossDetector = new PacketLossDetector(bindInterface, configFile, channelIds, packetLogging);
 			packetLossDetector.start();
 		}
 	}
+
+
 
 }

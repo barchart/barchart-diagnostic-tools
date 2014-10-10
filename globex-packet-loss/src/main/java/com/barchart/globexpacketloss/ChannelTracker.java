@@ -25,13 +25,16 @@ public final class ChannelTracker {
 
 	private final PacketSequenceInspector combinedFeedInspector;
 
-	public ChannelTracker(Integer channelId, HostAndPort feedAHostAndPort, HostAndPort feedBHostAndPort) {
+	private final boolean packetLossLogging;
+
+	public ChannelTracker(Integer channelId, HostAndPort feedAHostAndPort, HostAndPort feedBHostAndPort, boolean packetLossLogging) {
 		this.channelId = channelId;
-		this.aFeedInspector = new PacketSequenceInspector();
-		this.bFeedInspector = new PacketSequenceInspector();
-		this.combinedFeedInspector = new PacketSequenceInspector();
+		this.aFeedInspector = new PacketSequenceInspector("A-FEED");
+		this.bFeedInspector = new PacketSequenceInspector("B-FEED");
+		this.combinedFeedInspector = new PacketSequenceInspector("");
 		this.aFeed = new FeedReceiver(feedAHostAndPort, aFeedInspector);
 		this.bFeed = new FeedReceiver(feedBHostAndPort, bFeedInspector);
+		this.packetLossLogging = packetLossLogging;
 	}
 
 	public Receiver getFeedReceiverA() {
@@ -97,6 +100,8 @@ public final class ChannelTracker {
 
 	private final class PacketSequenceInspector {
 
+		private final String id;
+
 		private long expectedSequenceNumber;
 
 		private long missedPackets;
@@ -105,7 +110,8 @@ public final class ChannelTracker {
 
 		private int receivedCount;
 
-		public PacketSequenceInspector() {
+		public PacketSequenceInspector(String id) {
+			this.id = id;
 			this.expectedSequenceNumber = Long.MIN_VALUE;
 		}
 
@@ -120,16 +126,24 @@ public final class ChannelTracker {
 		private void receiveSequenceNumber(long sequenceNumber) {
 			receivedCount++;
 			if (sequenceNumber < expectedSequenceNumber) {
-				// System.out.println("Old packet: " + sequenceNumber);
 				// Old packet, ignore
+				if (isLogging()) {
+					System.out.println(id + " - Old packet: " + sequenceNumber);
+				}
 				return;
 			} else if (sequenceNumber > expectedSequenceNumber && expectedSequenceNumber != Long.MIN_VALUE) {
-				// System.out.println("Missed packet" + sequenceNumber);
 				incidentCount++;
 				missedPackets += (sequenceNumber - expectedSequenceNumber);
+				if (isLogging()) {
+					System.out.println(id + " - Packet gap: " + sequenceNumber + "\tIncidents: " + incidentCount);
+				}
 			}
 			expectedSequenceNumber = sequenceNumber + 1;
 
+		}
+
+		private boolean isLogging() {
+			return packetLossLogging && !id.isEmpty();
 		}
 	}
 
