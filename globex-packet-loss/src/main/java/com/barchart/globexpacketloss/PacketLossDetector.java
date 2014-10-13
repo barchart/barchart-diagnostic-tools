@@ -24,6 +24,8 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 
+import com.barchart.globexpacketloss.multticast.MulticastReceiver;
+import com.barchart.globexpacketloss.multticast.arbitrage.Clock;
 import com.google.common.collect.HashBasedTable;
 import com.google.common.net.HostAndPort;
 
@@ -47,28 +49,27 @@ public final class PacketLossDetector {
 
 	private final Selector selector;
 
-	private final ByteBuffer buffer;
-
-	private final HashBasedTable<HostAndPort, Receiver, MembershipKey> membershipTable;
+	private final HashBasedTable<HostAndPort, MulticastReceiver, MembershipKey> membershipTable;
 
 	private final List<ChannelTracker> channelTrackers;
 
 	private final boolean packetLogging;
 
+	private final Clock clock;
+
 	private volatile boolean running = true;
 
 	private long lastLogTime;
-
 
 	public PacketLossDetector(NetworkInterface bindInterface, File configFile, List<Integer> channelIds, boolean packetLogging) throws Exception {
 		this.bindInterface = bindInterface;
 		this.configFile = configFile;
 		this.channelIds = channelIds;
 		this.selector = Selector.open();
-		this.buffer = ByteBuffer.allocateDirect(1500).order(ByteOrder.BIG_ENDIAN);
 		this.membershipTable = HashBasedTable.create();
 		this.channelTrackers = new ArrayList<ChannelTracker>();
 		this.packetLogging = packetLogging;
+		this.clock = new Clock();
 	}
 
 	public void start() throws Exception {
@@ -78,6 +79,7 @@ public final class PacketLossDetector {
 		warmup();
 		while (running) {
 			int numberOfKeys = selector.select(TIMEOUT);
+			clock.update();
 			if (isTimeToLog()) {
 				logTrackers();
 			}
@@ -94,13 +96,13 @@ public final class PacketLossDetector {
 		while (System.currentTimeMillis() < stopWarmup) {
 			selector.select(TIMEOUT);
 			Iterator<SelectionKey> iter = selector.selectedKeys().iterator();
+			ByteBuffer buffer = ByteBuffer.allocate(1500);
 			while (iter.hasNext()) {
 				SelectionKey key = iter.next();
 				DatagramChannel channel = (DatagramChannel) key.channel();
 				buffer.clear();
 				channel.receive(buffer);
 				iter.remove();
-
 			}
 		}
 		System.out.println("Done warming up.");
@@ -111,7 +113,7 @@ public final class PacketLossDetector {
 		for (Integer channelId : channelIds) {
 			HostAndPort incrementalFeedA = xmlConfig.getIncrementalFeedA(channelId);
 			HostAndPort incrementalFeedB = xmlConfig.getIncrementalFeedB(channelId);
-			ChannelTracker channelTracker = new ChannelTracker(channelId, incrementalFeedA, incrementalFeedB, packetLogging);
+			ChannelTracker channelTracker = new ChannelTracker(clock, channelId, incrementalFeedA, incrementalFeedB, packetLogging);
 			channelTrackers.add(channelTracker);
 		}
 	}
@@ -150,7 +152,7 @@ public final class PacketLossDetector {
 		}
 	}
 
-	public void joinMulticast(HostAndPort multicastInfo, Receiver receiver) throws IOException {
+	private void joinMulticast(HostAndPort multicastInfo, MulticastReceiver receiver) throws IOException {
 		System.out.println("Joining multicast: " + multicastInfo);
 		InetAddress group = InetAddress.getByName(multicastInfo.getHostText());
 		DatagramChannel channel = DatagramChannel.open(StandardProtocolFamily.INET);
@@ -181,10 +183,9 @@ public final class PacketLossDetector {
 			System.out.println("WARNING: Requested receive buffer of size " + RECEIVE_BUFFER_SIZE + ", but was given " + actualReceiveBufferSize
 					+ ".  Check the maximum buffer sizes in the operating system.");
 		}
-
 	}
 
-	public void leaveMulticast(HostAndPort multicastInfo, Receiver receiver) {
+	private void leaveMulticast(HostAndPort multicastInfo, MulticastReceiver receiver) {
 		MembershipKey membershipKey = membershipTable.remove(multicastInfo, receiver);
 		if (membershipKey != null) {
 			membershipKey.drop();
@@ -221,11 +222,8 @@ public final class PacketLossDetector {
 	private void processKey(SelectionKey key) throws Exception {
 		if (key.isValid()) {
 			DatagramChannel channel = (DatagramChannel) key.channel();
-			buffer.clear();
-			channel.receive(buffer);
-			buffer.flip();
-			Receiver receiver = (Receiver) key.attachment();
-			receiver.receive(buffer);
+			MulticastReceiver receiver = (MulticastReceiver) key.attachment();
+			receiver.receiveFrom(channel);
 		}
 	}
 
@@ -273,7 +271,7 @@ public final class PacketLossDetector {
 		}
 		return false;
 	}
-	
+
 	public static void main(String[] args) throws Exception {
 		System.out.println("Os: " + System.getProperty("os.name"));
 		if (args.length < 3) {
@@ -288,7 +286,5 @@ public final class PacketLossDetector {
 			packetLossDetector.start();
 		}
 	}
-
-
 
 }
