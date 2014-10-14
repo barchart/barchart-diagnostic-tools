@@ -21,6 +21,7 @@ public abstract class PoolingMulticastReceiver implements MulticastReceiver {
 	@Override
 	public final void receiveFrom(DatagramChannel channel) throws Exception {
 		ByteBuffer buffer = buffers[index];
+		buffer.clear();
 		index = (index + 1) % buffers.length;
 		channel.receive(buffer);
 		buffer.flip();
