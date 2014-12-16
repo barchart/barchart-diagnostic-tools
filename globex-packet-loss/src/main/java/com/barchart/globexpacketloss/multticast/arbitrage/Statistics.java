@@ -82,11 +82,11 @@ public final class Statistics {
 		}
 
 		public void reset() {
-			this.expected = 0;
-			this.receivedCount = 0;
-			this.oldCount = 0;
-			this.incidentCount = 0;
-			this.missedCount = 0;
+			// leave expected the same
+			this.receivedCount = 0L;
+			this.oldCount = 0L;
+			this.incidentCount = 0L;
+			this.missedCount = 0L;
 		}
 
 	}
