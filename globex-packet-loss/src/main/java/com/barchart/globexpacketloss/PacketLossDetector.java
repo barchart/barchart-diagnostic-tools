@@ -22,6 +22,7 @@ import java.util.Collections;
 import java.util.Date;
 import java.util.Iterator;
 import java.util.List;
+import java.util.TimeZone;
 import java.util.concurrent.TimeUnit;
 
 import com.barchart.globexpacketloss.multticast.MulticastReceiver;
@@ -30,8 +31,6 @@ import com.google.common.collect.HashBasedTable;
 import com.google.common.net.HostAndPort;
 
 public final class PacketLossDetector {
-
-	private static final DateFormat DATE_FORMAT = new SimpleDateFormat("HH:mm:ss:SSS");
 
 	private static final int RECEIVE_BUFFER_SIZE = 16 * 1024 * 1024;
 
@@ -61,6 +60,8 @@ public final class PacketLossDetector {
 
 	private long lastLogTime;
 
+	private final SimpleDateFormat dateFormat;
+
 	public PacketLossDetector(NetworkInterface bindInterface, File configFile, List<Integer> channelIds, boolean packetLogging) throws Exception {
 		this.bindInterface = bindInterface;
 		this.configFile = configFile;
@@ -70,6 +71,8 @@ public final class PacketLossDetector {
 		this.channelTrackers = new ArrayList<ChannelTracker>();
 		this.packetLogging = packetLogging;
 		this.clock = new Clock();
+		this.dateFormat = new SimpleDateFormat("YYYY-MM-dd HH:mm:ss:SSS");
+		this.dateFormat.setTimeZone(TimeZone.getTimeZone("America/Chicago"));
 	}
 
 	public void start() throws Exception {
@@ -120,7 +123,8 @@ public final class PacketLossDetector {
 
 	private void logTrackers() {
 		StringBuilder builder = new StringBuilder();
-		String dateString = DATE_FORMAT.format(new Date());
+		
+		String dateString = dateFormat.format(new Date());
 		builder.append(dateString + " - " + ChannelTracker.HEADER).append("\n");
 		for (ChannelTracker tracker : channelTrackers) {
 			builder.append(dateString + " - " + tracker.toString()).append("\n");
