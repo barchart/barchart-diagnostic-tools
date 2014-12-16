@@ -10,12 +10,10 @@ import java.net.SocketException;
 import java.net.StandardProtocolFamily;
 import java.net.StandardSocketOptions;
 import java.nio.ByteBuffer;
-import java.nio.ByteOrder;
 import java.nio.channels.DatagramChannel;
 import java.nio.channels.MembershipKey;
 import java.nio.channels.SelectionKey;
 import java.nio.channels.Selector;
-import java.text.DateFormat;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -62,6 +60,8 @@ public final class PacketLossDetector {
 
 	private final SimpleDateFormat dateFormat;
 
+	private final ChannelTracker totalTracker;
+
 	public PacketLossDetector(NetworkInterface bindInterface, File configFile, List<Integer> channelIds, boolean packetLogging) throws Exception {
 		this.bindInterface = bindInterface;
 		this.configFile = configFile;
@@ -73,6 +73,7 @@ public final class PacketLossDetector {
 		this.clock = new Clock();
 		this.dateFormat = new SimpleDateFormat("YYYY-MM-dd HH:mm:ss:SSS");
 		this.dateFormat.setTimeZone(TimeZone.getTimeZone("America/Chicago"));
+		this.totalTracker =  new ChannelTracker(clock, 0, null, null, packetLogging);
 	}
 
 	public void start() throws Exception {
@@ -126,9 +127,14 @@ public final class PacketLossDetector {
 		
 		String dateString = dateFormat.format(new Date());
 		builder.append(dateString + " - " + ChannelTracker.HEADER).append("\n");
+		totalTracker.reset();
+		
 		for (ChannelTracker tracker : channelTrackers) {
 			builder.append(dateString + " - " + tracker.toString()).append("\n");
+			totalTracker.getStatistics().plusEquals(tracker.getStatistics());
 		}
+		builder.append(dateString + " - " + totalTracker.toString()).append("\n");
+		
 		System.out.println(builder.toString());
 	}
 
@@ -144,6 +150,7 @@ public final class PacketLossDetector {
 
 	private void joinTrackers() throws IOException {
 		for (ChannelTracker tracker : channelTrackers) {
+			System.out.println("Channel " + tracker.getChannelId() + ": " + tracker.getFeedAHostAndPort() + ", " + tracker.getFeedBHostAndPort());
 			joinMulticast(tracker.getFeedAHostAndPort(), tracker.getFeedReceiverA());
 			joinMulticast(tracker.getFeedBHostAndPort(), tracker.getFeedReceiverB());
 		}
@@ -157,7 +164,6 @@ public final class PacketLossDetector {
 	}
 
 	private void joinMulticast(HostAndPort multicastInfo, MulticastReceiver receiver) throws IOException {
-		System.out.println("Joining multicast: " + multicastInfo);
 		InetAddress group = InetAddress.getByName(multicastInfo.getHostText());
 		DatagramChannel channel = DatagramChannel.open(StandardProtocolFamily.INET);
 		channel.configureBlocking(false);

@@ -14,6 +14,12 @@ public final class Statistics {
 		this.combinedFeedStats = new LineStats();
 	}
 
+	public Statistics(LineStats aStats, LineStats bStats, LineStats cStats) {
+		this.aFeedStats = aStats;
+		this.bFeedStats = bStats;
+		this.combinedFeedStats = cStats;
+	}
+
 	public void aFeedReceived(long sequenceNumber) {
 		aFeedStats.receive(sequenceNumber);
 	}
@@ -43,7 +49,7 @@ public final class Statistics {
 		}
 
 		public void receive(long sequenceNumber) {
-//			System.out.println("Seq num: " + sequenceNumber);
+			// System.out.println("Seq num: " + sequenceNumber);
 			receivedCount++;
 			if (sequenceNumber == expected) {
 				expected++;
@@ -64,6 +70,23 @@ public final class Statistics {
 			} else {
 				return (missedCount / (double) receivedCount) * 100.0;
 			}
+		}
+
+		private void plusEquals(LineStats other) {
+			this.expected += other.expected;
+			this.receivedCount += other.receivedCount;
+			this.oldCount += other.oldCount;
+			this.incidentCount += other.incidentCount;
+			this.missedCount += other.missedCount;
+
+		}
+
+		public void reset() {
+			this.expected = 0;
+			this.receivedCount = 0;
+			this.oldCount = 0;
+			this.incidentCount = 0;
+			this.missedCount = 0;
 		}
 
 	}
@@ -114,6 +137,30 @@ public final class Statistics {
 
 	public double getCombinedFeedPercentageMissed() {
 		return combinedFeedStats.getPercentageMissed();
+	}
+
+	public static Statistics aggregate(Iterable<Statistics> all) {
+		LineStats aStats = new LineStats();
+		LineStats bStats = new LineStats();
+		LineStats cStats = new LineStats();
+		for (Statistics stats : all) {
+			aStats.plusEquals(stats.aFeedStats);
+			bStats.plusEquals(stats.aFeedStats);
+			cStats.plusEquals(stats.combinedFeedStats);
+		}
+		return new Statistics(aStats, bStats, cStats);
+	}
+
+	public void plusEquals(Statistics statistics) {
+		aFeedStats.plusEquals(statistics.aFeedStats);
+		bFeedStats.plusEquals(statistics.bFeedStats);
+		combinedFeedStats.plusEquals(statistics.combinedFeedStats);
+	}
+
+	public void reset() {
+		aFeedStats.reset();
+		bFeedStats.reset();
+		combinedFeedStats.reset();
 	}
 
 }

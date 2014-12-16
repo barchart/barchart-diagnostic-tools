@@ -14,7 +14,7 @@ import com.google.common.net.HostAndPort;
 
 public final class ChannelTracker extends CmeArbitrageur {
 
-	private static final String FORMAT_STRING = "Channel %3d | %9d %9d    %5.3f | %9d %9d    %5.3f | %9d %9d    %5.3f |";
+	private static final String FORMAT_STRING = "%11s | %9d %9d    %5.3f | %9d %9d    %5.3f | %9d %9d    %5.3f |";
 
 	public static final String HEADER = "            |      A-RX      A-DR      A-% |      B-RX      B-DR      B-% |      C-RX      C-DR      C-% |";
 
@@ -73,8 +73,12 @@ public final class ChannelTracker extends CmeArbitrageur {
 	@Override
 	public String toString() {
 		List<Object> parts = new ArrayList<Object>();
-		parts.add(channelId);
-
+		if (channelId > 0) {
+			parts.add(String.format("Channel %3d", channelId));
+		} else {
+			parts.add("Total      ");
+		}
+		
 		Statistics stats = getStatistics();
 
 		parts.add(stats.getAFeedReceivedCount());
@@ -107,5 +111,13 @@ public final class ChannelTracker extends CmeArbitrageur {
 	@Override
 	protected void reportIdleChannel(long millisSinceLastMessage) {
 
+	}
+
+	public void reset() {
+		getStatistics().reset();
+	}
+
+	public int getChannelId() {
+		return channelId;
 	}
 }
