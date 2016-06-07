@@ -5,6 +5,8 @@ import java.nio.ByteOrder;
 import java.util.ArrayList;
 import java.util.List;
 
+import org.ietf.jgss.ChannelBinding;
+
 import com.barchart.globexpacketloss.multticast.MulticastReceiver;
 import com.barchart.globexpacketloss.multticast.PoolingMulticastReceiver;
 import com.barchart.globexpacketloss.multticast.arbitrage.Clock;
@@ -28,14 +30,14 @@ public final class ChannelTracker extends CmeArbitrageur {
 
 	private final boolean packetLossLogging;
 
-	private final MulticastReceiver aFeedReceiver = new PoolingMulticastReceiver(POOL_SIZE, MAX_PACKET_SIZE, ByteOrder.BIG_ENDIAN) {
+	private final MulticastReceiver aFeedReceiver = new PoolingMulticastReceiver(POOL_SIZE, MAX_PACKET_SIZE, ByteOrder.LITTLE_ENDIAN) {
 		@Override
 		protected void receiveByteBuffer(ByteBuffer buffer) throws Exception {
 			receiveOnAFeed(buffer);
 		}
 	};
 
-	private final MulticastReceiver bFeedReceiver = new PoolingMulticastReceiver(POOL_SIZE, MAX_PACKET_SIZE, ByteOrder.BIG_ENDIAN) {
+	private final MulticastReceiver bFeedReceiver = new PoolingMulticastReceiver(POOL_SIZE, MAX_PACKET_SIZE, ByteOrder.LITTLE_ENDIAN) {
 		@Override
 		protected void receiveByteBuffer(ByteBuffer buffer) throws Exception {
 			receiveOnBFeed(buffer);
@@ -47,7 +49,7 @@ public final class ChannelTracker extends CmeArbitrageur {
 	private HostAndPort feedBHostAndPort;
 
 	public ChannelTracker(Clock clock, Integer channelId, HostAndPort feedAHostAndPort, HostAndPort feedBHostAndPort, boolean packetLossLogging) {
-		super(clock, PACKET_CACHE_SIZE);
+		super(clock, PACKET_CACHE_SIZE, channelId);
 		this.packetLossLogging = packetLossLogging;
 		this.channelId = channelId;
 		this.feedAHostAndPort = feedAHostAndPort;

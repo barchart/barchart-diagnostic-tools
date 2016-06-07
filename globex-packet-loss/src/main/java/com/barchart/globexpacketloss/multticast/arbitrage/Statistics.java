@@ -1,5 +1,7 @@
 package com.barchart.globexpacketloss.multticast.arbitrage;
 
+import org.ietf.jgss.ChannelBinding;
+
 public final class Statistics {
 
 	private final LineStats aFeedStats;
@@ -8,13 +10,17 @@ public final class Statistics {
 
 	private final LineStats combinedFeedStats;
 
-	Statistics() {
-		this.aFeedStats = new LineStats();
-		this.bFeedStats = new LineStats();
-		this.combinedFeedStats = new LineStats();
+	private final int channelId;
+
+	Statistics(int channelId) {
+		this.channelId = channelId;
+		this.aFeedStats = new LineStats(channelId + "-A");
+		this.bFeedStats = new LineStats(channelId + "-A");
+		this.combinedFeedStats = new LineStats(channelId + "-C");
 	}
 
 	public Statistics(LineStats aStats, LineStats bStats, LineStats cStats) {
+		this.channelId = 0;
 		this.aFeedStats = aStats;
 		this.bFeedStats = bStats;
 		this.combinedFeedStats = cStats;
@@ -44,12 +50,15 @@ public final class Statistics {
 
 		private long missedCount;
 
-		LineStats() {
+		private final String name;
+
+		LineStats(String name) {
+			this.name = name;
 			this.expected = Long.MIN_VALUE;
 		}
 
 		public void receive(long sequenceNumber) {
-			// System.out.println("Seq num: " + sequenceNumber);
+//			 System.out.println("Seq num: " + sequenceNumber + ", expected: " + expected);
 			receivedCount++;
 			if (sequenceNumber == expected) {
 				expected++;
@@ -58,6 +67,7 @@ public final class Statistics {
 			} else if (sequenceNumber < expected) {
 				oldCount++;
 			} else {
+				System.out.println("Packet loss on " + name + ". Received: " + sequenceNumber + ", expexted: " + expected + ", missing: " + (sequenceNumber - expected));
 				missedCount += (sequenceNumber - expected);
 				incidentCount++;
 				expected = sequenceNumber + 1;
@@ -140,9 +150,9 @@ public final class Statistics {
 	}
 
 	public static Statistics aggregate(Iterable<Statistics> all) {
-		LineStats aStats = new LineStats();
-		LineStats bStats = new LineStats();
-		LineStats cStats = new LineStats();
+		LineStats aStats = new LineStats("all-a");
+		LineStats bStats = new LineStats("all-b");
+		LineStats cStats = new LineStats("all-c");
 		for (Statistics stats : all) {
 			aStats.plusEquals(stats.aFeedStats);
 			bStats.plusEquals(stats.aFeedStats);

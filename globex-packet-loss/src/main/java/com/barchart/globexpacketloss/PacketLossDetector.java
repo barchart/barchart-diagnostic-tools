@@ -35,7 +35,7 @@ public final class PacketLossDetector {
 
 	private static final long TIMEOUT = 100;
 
-	private static final int LOG_INTERVAL = 5000;
+	private static final long LOG_INTERVAL = TimeUnit.SECONDS.toMillis(30);
 
 	private static final long WARMUP_SECONDS = 1;
 

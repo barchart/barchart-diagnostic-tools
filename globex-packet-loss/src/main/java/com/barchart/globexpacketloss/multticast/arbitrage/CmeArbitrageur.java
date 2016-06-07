@@ -16,10 +16,10 @@ public abstract class CmeArbitrageur {
 
 	private long lastGoodPacketTime;
 
-	public CmeArbitrageur(Clock clock, int cacheSize) {
+	public CmeArbitrageur(Clock clock, int cacheSize, int channelId) {
 		this.clock = clock;
 		this.packetCache = new PacketCache(cacheSize);
-		this.stats = new Statistics();
+		this.stats = new Statistics(channelId);
 		this.expectedSequenceNumber = Long.MIN_VALUE;
 	}
 
